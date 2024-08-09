@@ -135,7 +135,7 @@ async def bot_webhook(request: Request):
 
 @app.on_event("startup")
 async def on_startup():
-    await bot.set_webhook(f"https://trading-bot-322o-qcz8tqrbh-puppy-dabbys-projects.vercel.app/bot{TOKEN}")
+    await bot.set_webhook(f"https://trading-bot-322o.vercel.app/bot{TOKEN}")
     loop = asyncio.get_event_loop()
     loop.create_task(signal_handler())
 
