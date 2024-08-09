@@ -1,14 +1,17 @@
 import asyncio
 import logging
 import sys
+
 import pandas as pd
 import ta
 from binance.um_futures import UMFutures
 from binance.error import ClientError
+
+from aiogram import Bot, Dispatcher, html
 from aiogram.client.default import DefaultBotProperties
-from aiogram import Bot, Dispatcher, types
-from aiogram.types import ParseMode
+from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart, Command
+from aiogram.types import Message, BotCommand
 from fastapi import FastAPI, Request
 import uvicorn
 
@@ -85,34 +88,18 @@ TOKEN = "6574734375:AAG7GRm5IpPyu90GoPTe1lzUqZHkSrmPdpE"
 chat_ids = ["6068927923", "7205728757"]
 
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-dp = Dispatcher(bot)
-
-@app.post(f"/bot/{TOKEN}")
-async def bot_webhook(request: Request):
-    json_update = await request.json()
-    update = types.Update(**json_update)
-    await dp.process_update(update)
-    return {"status": "ok"}
+dp = Dispatcher()
 
 @dp.message(CommandStart())
-async def command_start_handler(message: types.Message) -> None:
+async def command_start_handler(message: Message) -> None:
     await message.answer(f"Hello, {message.from_user.full_name}!")
 
 @dp.message(Command(commands=["analyze"]))
-async def help_command_handler(message: types.Message) -> None:
-    responses = []
-    for symbol in symbols:
-        signal = kj_strategy(symbol, interval, limit)
-        if signal == 'up':
-            responses.append(f'Found BUY signal for {symbol}')
-        elif signal == 'down':
-            responses.append(f'Found SELL signal for {symbol}')
-        else:
-            responses.append(f'No signal for {symbol}')
-    await message.answer("\n".join(responses))
+async def help_command_handler(message: Message) -> None:
+    await message.answer("This bot provides trading signals based on a custom strategy.")
 
 @dp.message(Command(commands=["stop"]))
-async def stop_command_handler(message: types.Message) -> None:
+async def stop_command_handler(message: Message) -> None:
     global stop_signal_handler
     stop_signal_handler = True
     await message.answer("Stopping the signal handler.")
@@ -133,10 +120,21 @@ async def signal_handler() -> None:
                     await bot.send_message(chat_id, text=f'Found SELL signal for {symbol}')
             await asyncio.sleep(30)
 
+async def main() -> None:
+    await bot.set_my_commands([BotCommand(command="start", description="Starts the bot"), BotCommand(command="analyze", description="Shows a list of available commands"), BotCommand(command="stop", description="Stops the bot")])
+    await dp.start_polling(bot)
+
+app = FastAPI()
+
+@app.post(f"/bot{TOKEN}")
+async def bot_webhook(request: Request):
+    update = await request.json()
+    Dispatcher.process_update(bot, update)
+    return {"status": "ok"}
+
 @app.on_event("startup")
 async def on_startup():
-    webhook_url = f"https://your-vercel-app-url.vercel.app/bot/{TOKEN}"
-    await bot.set_webhook(webhook_url)
+    await bot.set_webhook(f"https://trading-bot-puppy-dabbys-projects.vercel.app//bot{TOKEN}")
     loop = asyncio.get_event_loop()
     loop.create_task(signal_handler())
 
