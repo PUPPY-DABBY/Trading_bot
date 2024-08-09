@@ -86,7 +86,7 @@ symbols = get_tickers_usdt()
 TOKEN = "6574734375:AAG7GRm5IpPyu90GoPTe1lzUqZHkSrmPdpE"
 chat_ids = ["6068927923", "7205728757"]
 
-bot = Bot(token=TOKEN, parse_mode=ParseMode.HTML)
+bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 
 @dp.message(CommandStart())
