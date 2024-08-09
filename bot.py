@@ -126,7 +126,7 @@ async def main() -> None:
 
 app = FastAPI()
 
-@app.post(f"https://trading-codh3v7oj-puppy-dabbys-projects.vercel.app/bot{TOKEN}")
+@app.post(f"/bot{TOKEN}")
 async def bot_webhook(request: Request):
     update = await request.json()
     Dispatcher.process_update(bot, update)
@@ -134,7 +134,7 @@ async def bot_webhook(request: Request):
 
 @app.on_event("startup")
 async def on_startup():
-    await bot.set_webhook(f"https://trading-codh3v7oj-puppy-dabbys-projects.vercel.app/bot{TOKEN}")
+    await bot.set_webhook(f"https://trading-bot-322o-qcz8tqrbh-puppy-dabbys-projects.vercel.app/bot{TOKEN}")
     loop = asyncio.get_event_loop()
     loop.create_task(signal_handler())
 
