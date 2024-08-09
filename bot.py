@@ -1,6 +1,6 @@
 import asyncio
 import logging
-import os
+import sys
 
 import pandas as pd
 import ta
@@ -8,15 +8,16 @@ from binance.um_futures import UMFutures
 from binance.error import ClientError
 
 from aiogram import Bot, Dispatcher, types
-from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message, BotCommand
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+import uvicorn
 
-api = os.getenv('BINANCE_API_KEY')
-secret = os.getenv('BINANCE_API_SECRET')
+# Replace with your actual keys and tokens
+api = 'your_binance_api_key'
+secret = 'your_binance_api_secret'
+
 client = UMFutures(key=api, secret=secret)
 
 stop_signal_handler = False  # Global flag to control the signal handler loop
@@ -42,16 +43,14 @@ def fetch_and_process_data(symbol, interval, limit):
         df = df[['open', 'high', 'low', 'close', 'volume']]
         return df
     except ClientError as error:
-        print(f"Found error. status: {error.status_code}, error code: {error.error_code}, error message: {error.error_message}")
+        logging.error(f"Error fetching data: {error.status_code}, {error.error_code}, {error.error_message}")
         return None
 
 def kj_strategy(symbol, interval, limit):
-    # Fetch and process data
     df = fetch_and_process_data(symbol, interval, limit)
     if df is None or df.empty:
         return 'none'
 
-    # Calculate indicators
     close = df['close']
     high = df['high']
     low = df['low']
@@ -67,33 +66,27 @@ def kj_strategy(symbol, interval, limit):
     macd = ta.trend.MACD(close=close)
     macd_diff = macd.macd_diff()
 
-    # Generate signal
     if (ema50.iloc[-1] > ema200.iloc[-1]
         and rsi.iloc[-1] > 50
         and close.iloc[-1] > max(ichimoku_a.iloc[-1], ichimoku_b.iloc[-1])
         and obv.diff().iloc[-1] > 0
-        and macd_diff.iloc[-1] > 0 and macd_diff.iloc[-2] < 0
-    ):
-        signal = 'up'
+        and macd_diff.iloc[-1] > 0 and macd_diff.iloc[-2] < 0):
+        return 'up'
     elif (ema50.iloc[-1] < ema200.iloc[-1]
-        and rsi.iloc[-1] < 50
-        and close.iloc[-1] < min(ichimoku_a.iloc[-1], ichimoku_b.iloc[-1])
-        and obv.diff().iloc[-1] < 0
-        and macd_diff.iloc[-1] < 0 and macd_diff.iloc[-2] > 0
-    ):
-        signal = 'down'
+          and rsi.iloc[-1] < 50
+          and close.iloc[-1] < min(ichimoku_a.iloc[-1], ichimoku_b.iloc[-1])
+          and obv.diff().iloc[-1] < 0
+          and macd_diff.iloc[-1] < 0 and macd_diff.iloc[-2] > 0):
+        return 'down'
     else:
-        signal = 'none'
+        return 'none'
 
-    return signal
+symbols = get_tickers_usdt()
 
-symbols = get_tickers_usdt() 
+TOKEN = "your_telegram_bot_token"
+chat_ids = ["chat_id_1", "chat_id_2"]
 
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-chat_ids = ["6068927923", "7205728757"]  # List of chat IDs
-
-# Initialize Bot instance with default properties for API calls
-bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+bot = Bot(token=TOKEN, parse_mode=ParseMode.HTML)
 dp = Dispatcher()
 
 @dp.message(CommandStart())
@@ -126,25 +119,24 @@ async def signal_handler() -> None:
                     await bot.send_message(chat_id, text=f'Found SELL signal for {symbol}')
             await asyncio.sleep(30)
 
+async def main() -> None:
+    await bot.set_my_commands([BotCommand(command="start", description="Starts the bot"), BotCommand(command="analyze", description="Shows a list of available commands"), BotCommand(command="stop", description="Stops the bot")])
+    await dp.start_polling(bot)
+
 app = FastAPI()
 
 @app.post(f"/bot{TOKEN}")
-async def receive_update(request: Request):
+async def bot_webhook(request: Request):
     update = await request.json()
-    Bot.process_new_updates([types.Update.de_json(update)])
-    return JSONResponse(status_code=200)
+    Dispatcher.process_update(bot, update)
+    return {"status": "ok"}
 
 @app.on_event("startup")
 async def on_startup():
     await bot.set_webhook(f"https://your-vercel-app-url.vercel.app/bot{TOKEN}")
-    await bot.set_my_commands([BotCommand(command="start", description="Starts the bot"), BotCommand(command="analyze", description="Shows a list of available commands"), BotCommand(command="stop", description="Stops the bot")])
     loop = asyncio.get_event_loop()
     loop.create_task(signal_handler())
 
-@app.get("/")
-async def read_root():
-    return {"message": "Hello, this is the Telegram bot server."}
-
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv('PORT', 8000)))
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
