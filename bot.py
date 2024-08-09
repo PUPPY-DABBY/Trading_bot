@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import sys
+import os
 
 import pandas as pd
 import ta
@@ -16,8 +17,9 @@ from fastapi import FastAPI, Request
 import uvicorn
 
 # Replace with your actual keys and tokens
-api = 'xCMChCj1fAfabaWt7VfQWpKoQBvieNUSEKvzfj48JUnzXLkYBxV5delPBFR5nCBE'
-secret = '9l9mK5X2i0PVzSoUbYD7Kcn2bIjA2XTwGgOgJzMaK0s7yLANPQFGJpfvHW22anB9'
+api = os.getenv('API_KEY')
+secret = os.getenv('API_SECRET')
+TOKEN = os.getenv('TOKEN')
 
 client = UMFutures(key=api, secret=secret)
 
@@ -84,7 +86,6 @@ def kj_strategy(symbol, interval, limit):
 
 symbols = get_tickers_usdt()
 
-TOKEN = "6574734375:AAG7GRm5IpPyu90GoPTe1lzUqZHkSrmPdpE"
 chat_ids = ["6068927923", "7205728757"]
 
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
@@ -129,14 +130,8 @@ app = FastAPI()
 @app.post(f"/bot{TOKEN}")
 async def bot_webhook(request: Request):
     update = await request.json()
-    Dispatcher.process_update(bot, update)
+    Dispatcher.process_update(dp, update)
     return {"status": "ok"}
-
-@app.on_event("startup")
-async def on_startup():
-    await bot.set_webhook(f"https://trading-bot-322o-qcz8tqrbh-puppy-dabbys-projects.vercel.app/bot{TOKEN}")
-    loop = asyncio.get_event_loop()
-    loop.create_task(signal_handler())
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
