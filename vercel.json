@@ -9,7 +9,7 @@
   "routes": [
     {
       "src": "/bot(.*)",
-      "dest": "bot.py"
+      "dest": "/bot.py"
     }
   ],
   "rewrites": [
