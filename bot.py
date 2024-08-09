@@ -84,7 +84,7 @@ def kj_strategy(symbol, interval, limit):
 symbols = get_tickers_usdt()
 
 TOKEN = "6574734375:AAG7GRm5IpPyu90GoPTe1lzUqZHkSrmPdpE"
-chat_ids = ["chat_id_1", "chat_id_2"]
+chat_ids = ["6068927923", "7205728757"]
 
 bot = Bot(token=TOKEN, parse_mode=ParseMode.HTML)
 dp = Dispatcher()
@@ -133,7 +133,7 @@ async def bot_webhook(request: Request):
 
 @app.on_event("startup")
 async def on_startup():
-    await bot.set_webhook(f"https://your-vercel-app-url.vercel.app/bot{TOKEN}")
+    await bot.set_webhook(f"https://trading-bot-delta.vercel.app/bot{TOKEN}")
     loop = asyncio.get_event_loop()
     loop.create_task(signal_handler())
 
