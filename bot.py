@@ -5,6 +5,7 @@ import pandas as pd
 import ta
 from binance.um_futures import UMFutures
 from binance.error import ClientError
+from aiogram.client.default import DefaultBotProperties
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import ParseMode
 from aiogram.filters import CommandStart, Command
@@ -83,7 +84,7 @@ symbols = get_tickers_usdt()
 TOKEN = "6574734375:AAG7GRm5IpPyu90GoPTe1lzUqZHkSrmPdpE"
 chat_ids = ["6068927923", "7205728757"]
 
-bot = Bot(token=TOKEN, parse_mode=ParseMode.HTML)
+bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher(bot)
 
 @app.post(f"/bot/{TOKEN}")
