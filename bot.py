@@ -15,8 +15,8 @@ from fastapi import FastAPI, Request
 import uvicorn
 
 # Replace with your actual keys and tokens
-api = 'your_binance_api_key'
-secret = 'your_binance_api_secret'
+api = 'xCMChCj1fAfabaWt7VfQWpKoQBvieNUSEKvzfj48JUnzXLkYBxV5delPBFR5nCBE'
+secret = '9l9mK5X2i0PVzSoUbYD7Kcn2bIjA2XTwGgOgJzMaK0s7yLANPQFGJpfvHW22anB9'
 
 client = UMFutures(key=api, secret=secret)
 
@@ -83,7 +83,7 @@ def kj_strategy(symbol, interval, limit):
 
 symbols = get_tickers_usdt()
 
-TOKEN = "your_telegram_bot_token"
+TOKEN = "6574734375:AAG7GRm5IpPyu90GoPTe1lzUqZHkSrmPdpE"
 chat_ids = ["chat_id_1", "chat_id_2"]
 
 bot = Bot(token=TOKEN, parse_mode=ParseMode.HTML)
