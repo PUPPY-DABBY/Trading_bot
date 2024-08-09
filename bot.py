@@ -133,6 +133,12 @@ async def bot_webhook(request: Request):
     Dispatcher.process_update(dp, update)
     return {"status": "ok"}
 
+@app.on_event("startup")
+async def on_startup():
+    await bot.set_webhook(f"https://{os.getenv('VERCEL_URL')}/bot{TOKEN}")
+    loop = asyncio.get_event_loop()
+    loop.create_task(signal_handler())
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
     uvicorn.run(app, host="0.0.0.0", port=8000)
