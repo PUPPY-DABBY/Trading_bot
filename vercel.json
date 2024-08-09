@@ -1,13 +1,20 @@
 {
+  "version": 2,
+  "builds": [
+    {
+      "src": "main.py",
+      "use": "@vercel/python"
+    }
+  ],
   "routes": [
     {
-      "src": "/",
-      "dest": "/"
-    },
-    {
-      {
-      "src": "/",
-      "dest": "/bot.py"
+      "src": "/bot(.*)",
+      "dest": "main.py"
     }
-  ]    
+  ],
+  "env": {
+    "TOKEN": "6574734375:AAG7GRm5IpPyu90GoPTe1lzUqZHkSrmPdpE",
+    "API_KEY": "xCMChCj1fAfabaWt7VfQWpKoQBvieNUSEKvzfj48JUnzXLkYBxV5delPBFR5nCBE",
+    "API_SECRET": "9l9mK5X2i0PVzSoUbYD7Kcn2bIjA2XTwGgOgJzMaK0s7yLANPQFGJpfvHW22anB9"
+  }
 }
