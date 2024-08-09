@@ -9,13 +9,18 @@
   "routes": [
     {
       "src": "/bot(.*)",
-      "dest": "/bot.py"
+      "dest": "bot.py"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/bot.py"
     }
   ],
   "env": {
     "TOKEN": "6574734375:AAG7GRm5IpPyu90GoPTe1lzUqZHkSrmPdpE",
     "API_KEY": "xCMChCj1fAfabaWt7VfQWpKoQBvieNUSEKvzfj48JUnzXLkYBxV5delPBFR5nCBE",
-    "API_SECRET": "9l9mK5X2i0PVzSoUbYD7Kcn2bIjA2XTwGgOgJzMaK0s7yLANPQFGJpfvHW22anB9",
-    "VERCEL_URL": "trading-bot-322o-qcz8tqrbh-puppy-dabbys-projects.vercel.app"
+    "API_SECRET": "9l9mK5X2i0PVzSoUbYD7Kcn2bIjA2XTwGgOgJzMaK0s7yLANPQFGJpfvHW22anB9"
   }
 }
