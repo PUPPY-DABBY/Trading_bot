@@ -1,6 +1,0 @@
-aiogram
-pandas
-ta
-binance-futures-connector
-fastapi
-uvicorn
