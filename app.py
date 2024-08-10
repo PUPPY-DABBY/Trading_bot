@@ -14,16 +14,21 @@ from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message, BotCommand
 from fastapi import FastAPI, Request
+from contextlib import asynccontextmanager
 import uvicorn
 
-# Replace with your actual keys and tokens
-api = os.getenv('API_KEY')
-secret = os.getenv('API_SECRET')
-TOKEN = os.getenv('TOKEN')
+# Load environment variables (these should be set in your Vercel environment)
+api = 'xCMChCj1fAfabaWt7VfQWpKoQBvieNUSEKvzfj48JUnzXLkYBxV5delPBFR5nCBE'
+secret = '9l9mK5X2i0PVzSoUbYD7Kcn2bIjA2XTwGgOgJzMaK0s7yLANPQFGJpfvHW22anB9'
+TOKEN = "6574734375:AAG7GRm5IpPyu90GoPTe1lzUqZHkSrmPdpE"
+chat_ids = ["6068927923", "7205728757"] 
 
 client = UMFutures(key=api, secret=secret)
 
-stop_signal_handler = False  # Global flag to control the signal handler loop
+# Global flag to control the signal handler loop
+stop_signal_handler = False
+# To ensure the analyze operation only runs once at a time
+analyze_task = None
 
 def get_tickers_usdt():
     tickers = []
@@ -46,14 +51,16 @@ def fetch_and_process_data(symbol, interval, limit):
         df = df[['open', 'high', 'low', 'close', 'volume']]
         return df
     except ClientError as error:
-        logging.error(f"Error fetching data: {error.status_code}, {error.error_code}, {error.error_message}")
+        print(f"Found error. status: {error.status_code}, error code: {error.error_code}, error message: {error.error_message}")
         return None
 
 def kj_strategy(symbol, interval, limit):
+    # Fetch and process data
     df = fetch_and_process_data(symbol, interval, limit)
     if df is None or df.empty:
         return 'none'
 
+    # Calculate indicators
     close = df['close']
     high = df['high']
     low = df['low']
@@ -69,44 +76,39 @@ def kj_strategy(symbol, interval, limit):
     macd = ta.trend.MACD(close=close)
     macd_diff = macd.macd_diff()
 
+    # Generate signal
     if (ema50.iloc[-1] > ema200.iloc[-1]
         and rsi.iloc[-1] > 50
         and close.iloc[-1] > max(ichimoku_a.iloc[-1], ichimoku_b.iloc[-1])
         and obv.diff().iloc[-1] > 0
-        and macd_diff.iloc[-1] > 0 and macd_diff.iloc[-2] < 0):
-        return 'up'
+        and macd_diff.iloc[-1] > 0 and macd_diff.iloc[-2] < 0
+    ):
+        signal = 'up'
     elif (ema50.iloc[-1] < ema200.iloc[-1]
-          and rsi.iloc[-1] < 50
-          and close.iloc[-1] < min(ichimoku_a.iloc[-1], ichimoku_b.iloc[-1])
-          and obv.diff().iloc[-1] < 0
-          and macd_diff.iloc[-1] < 0 and macd_diff.iloc[-2] > 0):
-        return 'down'
+        and rsi.iloc[-1] < 50
+        and close.iloc[-1] < min(ichimoku_a.iloc[-1], ichimoku_b.iloc[-1])
+        and obv.diff().iloc[-1] < 0
+        and macd_diff.iloc[-1] < 0 and macd_diff.iloc[-2] > 0
+    ):
+        signal = 'down'
     else:
-        return 'none'
+        signal = 'none'
+
+    return signal
 
 symbols = get_tickers_usdt()
 
-chat_ids = ["6068927923", "7205728757"]
-
+# Initialize Bot instance with default properties for API calls
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 
 @dp.message(CommandStart())
 async def command_start_handler(message: Message) -> None:
-    await message.answer(f"Hello, {message.from_user.full_name}!")
+    await message.answer(f"Hello, {html.bold(message.from_user.full_name)}!")
 
-@dp.message(Command(commands=["analyze"]))
-async def help_command_handler(message: Message) -> None:
-    await message.answer("This bot provides trading signals based on a custom strategy.")
-
-@dp.message(Command(commands=["stop"]))
-async def stop_command_handler(message: Message) -> None:
+async def analyze_operation():
     global stop_signal_handler
-    stop_signal_handler = True
-    await message.answer("Stopping the signal handler.")
-
-async def signal_handler() -> None:
-    global stop_signal_handler
+    stop_signal_handler = False  # Reset the stop signal
     while not stop_signal_handler:
         for symbol in symbols:
             if stop_signal_handler:
@@ -120,24 +122,55 @@ async def signal_handler() -> None:
                 elif signal == 'down':
                     await bot.send_message(chat_id, text=f'Found SELL signal for {symbol}')
             await asyncio.sleep(30)
+    await bot.send_message(chat_ids[0], "Stopped analyzing signals.")
 
-async def main() -> None:
-    await bot.set_my_commands([BotCommand(command="start", description="Starts the bot"), BotCommand(command="analyze", description="Shows a list of available commands"), BotCommand(command="stop", description="Stops the bot")])
-    await dp.start_polling(bot)
+@dp.message(Command(commands=["analyze"]))
+async def analyze_command_handler(message: Message) -> None:
+    global analyze_task
+    if analyze_task is None or analyze_task.done():
+        analyze_task = asyncio.create_task(analyze_operation())
+        await message.answer("Started analyzing signals.")
+    else:
+        await message.answer("Analysis is already running.")
 
-app = FastAPI()
+@dp.message(Command(commands=["stop"]))
+async def stop_command_handler(message: Message) -> None:
+    global stop_signal_handler
+    if not stop_signal_handler:
+        stop_signal_handler = True
+        await message.answer("Stopping the signal handler...")
+        await analyze_task  # Ensure that the task completes
+    else:
+        await message.answer("Signal handler is not running.")
+
+async def on_startup():
+    await bot.set_my_commands([
+        BotCommand(command="start", description="Starts the bot"),
+        BotCommand(command="analyze", description="Start analyzing signals"),
+        BotCommand(command="stop", description="Stops the bot")
+    ])
+    # Start the polling process
+    asyncio.create_task(dp.start_polling(bot))
+
+# Set up FastAPI with the lifespan context
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global stop_signal_handler
+    # Startup event
+    analyze_task = asyncio.create_task(on_startup())
+    yield
+    # Shutdown event
+    stop_signal_handler = True
+    if analyze_task is not None:
+        await analyze_task
+
+app = FastAPI(lifespan=lifespan)
 
 @app.post(f"/bot{TOKEN}")
 async def bot_webhook(request: Request):
     update = await request.json()
     Dispatcher.process_update(dp, update)
     return {"status": "ok"}
-
-@app.on_event("startup")
-async def on_startup():
-    await bot.set_webhook(f"https://trading-bot-322o.vercel.app/bot{TOKEN}")
-    loop = asyncio.get_event_loop()
-    loop.create_task(signal_handler())
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
